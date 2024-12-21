@@ -9,10 +9,12 @@ from queue import Empty, Queue
 import re
 import os
 from os.path import abspath, dirname
-from subprocess import DEVNULL, Popen, STDOUT
-from sys import exit, stderr, stdout
-from threading import Event, Lock, Thread
-from time import sleep
+from select import select
+from subprocess import DEVNULL, Popen, STDOUT, PIPE
+import selectors
+from sys import exception, exit, stderr, stdout
+from threading import Event, ExceptHookArgs, Lock, Thread
+from time import sleep, time
 import unicodedata
 
 import click
@@ -327,7 +329,19 @@ def countdown(
         args=(stdscr, input_queue, quit_event, curses_lock),
         target=input_thread_body,
     )
+    
+    # create a stop event that is asserted at the end of this function
+    stop_event = Event()
+    # thread to run watch_xscreensaver function
+    watch_thread = Thread(
+        args=(input_queue,stop_event,),
+        target=watch_xscreensaver
+    )
+
     input_thread.start()
+
+    # start thread for watch function
+    watch_thread.start()
 
     seconds_total = seconds_left = int(ceil((target - datetime.now()).total_seconds()))
 
@@ -536,6 +550,9 @@ def countdown(
         quit_event.set()
         input_thread.join()
 
+        # assert stop event and end watch thread
+        stop_event.set()
+        watch_thread.join()
 
 @graceful_ctrlc
 def stopwatch(
@@ -687,6 +704,8 @@ def stopwatch(
                 os.remove(outfile)
         quit_event.set()
         input_thread.join()
+
+        # kill 
     return (datetime.now() - sync_start).total_seconds(), laps
 
 
@@ -831,6 +850,43 @@ def main(**kwargs):
                 format_seconds(int(seconds_elapsed)),
             ))
         stderr.flush()
+
+# function to watch xscreensaver for LOCK and UNBLANK events
+# an INPUT_PAUSE event is pushed into the input queue on LOCK or UNBLANK
+def watch_xscreensaver(input_queue: Queue, stop_event: Event):
+    # cmd to watch xscreensaver events
+    cmd = ["/usr/bin/xscreensaver-command", "-watch"]
+
+    # start process
+    process = Popen(cmd, shell=False, stdout=PIPE, stderr=PIPE, text=True)
+    sel = selectors.DefaultSelector()
+    sel.register(process.stdout, selectors.EVENT_READ)
+
+    try:
+        # while stop event has not been set
+        while stop_event.is_set() != True:
+            # get the events
+            events = sel.select(timeout=0)
+    
+            # get any output from the process  and check what event it matches
+            for key, _ in events:
+                line = key.fileobj.readline()
+                if line:
+                    op = line.strip().split()[0]
+                    if op == "LOCK" or op == "UNBLANK":
+                        input_queue.put(INPUT_PAUSE)
+                    else:
+                        pass
+    except Exception:
+        process.terminate()
+        process.wait()
+    finally:
+        # if process still exists, terminate it
+        process.terminate()
+        process.wait()
+
+
+
 
 
 if __name__ == '__main__':
