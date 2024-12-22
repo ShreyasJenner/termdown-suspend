@@ -13,8 +13,7 @@ Usage: termdown [OPTIONS] [TIME]
       E       Show end time (countdown mode only)
       L       Lap (stopwatch mode only)
       R       Reset
-      SPACE   Pause (will delay absolute TIME)
-      +       Plus (will add 10 seconds)
+      SPACE   Pause (will delay absolute TIME) +       Plus (will add 10 seconds)
       -       Minus (will subtract 10 seconds)
       Q       Quit
 
@@ -82,6 +81,14 @@ Options:
 ```
 pip install termdown
 ```
+
+
+### Features
+- Added function to read xscreensaver events to pause countdown, when xscreensaver is triggered. The countdown resumes when the screen is unlocked 
+
+### To-Do:
+- add support for other lockscreens as well
+
 
 ------------------------------------------------------------------------
 
