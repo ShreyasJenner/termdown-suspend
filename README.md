@@ -1,11 +1,10 @@
-![termdown demo](/termdown.gif?raw=true)
-
-
 ### New Features
 - Added function to read xscreensaver events to pause countdown, when xscreensaver is triggered. The countdown resumes when the screen is unlocked 
 
 ### To-Do:
 - add support for other lockscreens as well
+
+![termdown demo](/termdown.gif?raw=true)
 
 ```
 Usage: termdown [OPTIONS] [TIME]
